@@ -26,3 +26,6 @@ def selection_sort_simple_2(arr):
 
 
 print(a, selection_sort_simple_1(a.copy()), selection_sort_simple_2(a.copy()), sep="\n")
+
+# https://habr.com/ru/articles/422085/
+# https://younglinux.info/algorithm/sort_min
