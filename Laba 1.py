@@ -18,3 +18,5 @@ def check_brackets(input_string: str) -> bool:
 
 print(check_brackets("1(FDS)32 2FDS F() {}({}[][])()"))
 
+
+
