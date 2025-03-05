@@ -16,7 +16,7 @@ def check_brackets(input_string: str) -> bool:
     return False
 
 
-print(check_brackets("1(FDS)32 2FDS F() {}({}[][])()"))
+print(check_brackets("1(FDS)32 2FDS F() }({}[][])()"))
 
 
 

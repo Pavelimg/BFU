@@ -28,7 +28,7 @@ def create_hash_table(file_path, table_size):
 
 
 move = 10  # сдивг для Хэш-функции (Что бы продемонстрировать коллизии. Например "a" и "k")
-table = create_hash_table('input.txt', 1000)
+table = create_hash_table('../input.txt', 1000)
 
 for i, element in enumerate(table):
     if element:

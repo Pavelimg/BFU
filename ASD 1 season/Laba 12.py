@@ -2,7 +2,7 @@ import heapq
 import random
 
 # Генерим случайный файл
-input_path = "input.txt"
+input_path = "../input.txt"
 with open(input_path, 'w') as example:
     for x in range(1000):
         example.writelines(str(random.randint(0, 100000)) + '\n')
@@ -41,7 +41,7 @@ def merge_sorted_chunks(chunks, output_path):
                 heapq.heappush(heap, (next_element, chunk_index, element_index + 1))
 
 
-output_path = "output.txt"
+output_path = "../output.txt"
 chunk_size = 100
 
 merge_sorted_chunks(create_sorted_chunks(input_path, chunk_size), output_path)

@@ -8,8 +8,7 @@ def insertion_sort(arr):
     for i in range(1, len(arr)):
         j = i
         while j > 0 and arr[j - 1] > arr[j]:  # j > 0 что-бы при встрече наименьшего элемента не было IndexOutOfRange
-            arr[j - 1], arr[j] = arr[j], arr[
-                j - 1]  # Пока a[j] элемент не встанет на своё место, меняем его с соседом слева
+            arr[j - 1], arr[j] = arr[j], arr[j - 1]  # Пока a[j] элемент не встанет на своё место, меняем его с соседом слева
             j -= 1
     return arr
 
