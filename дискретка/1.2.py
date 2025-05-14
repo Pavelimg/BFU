@@ -1,5 +1,19 @@
+def split_string(a):
+    mult = list(map(lambda x: int(x) if x else None,
+                    a.replace("(", "*").replace(")", "*").replace("[", "*").replace("]", "*").split("*")[1:]))
+    brackets = list(filter(lambda x: True if x in "()[]" else False, a))
+    res = ""
+    for i in range(len(brackets)):
+
+        if mult[i]:
+            multiplier = mult[i]
+        else:
+            multiplier = 1
+        res += multiplier * brackets[i]
+    return res
+
+
 def stack_update(char, stack):
-    print(stack)
     if char in "([":  # если скобка открывающаяся, то записываем её в стек
         stack.append(char)
         return 0
@@ -18,30 +32,17 @@ def stack_update(char, stack):
 def check_brackets(input_string: str):
     stack = list()  # импровизированный стек
     errors = 0
-    previous_char_multiply = "0"
-    last_char = input_string[0]
-    for i in input_string:
-        if i.isdigit():
-            previous_char_multiply += i
-        else:
-            previous_char_multiply = int(previous_char_multiply)
-            while True:  # имитация цикла do while
-                errors += stack_update(last_char, stack)
-                if previous_char_multiply <= 0:
-                    break
-                previous_char_multiply -= 1
-            previous_char_multiply = "1"
-            last_char = i
 
-    for _ in range(int(previous_char_multiply)): # проверка на число в конце записи
-        errors += stack_update(last_char, stack)
+    for i in split_string(input_string):
+        errors += stack_update(i, stack)
+
     return True if errors + len(stack) == 0 else errors + len(
         stack)  # возвращаем True если всё верно, иначе количество ошибок
 
 
-"""print(check_brackets("()((())){}({}[][])()"))
-print(check_brackets(")()((())){}({}[][])()"))
-print(check_brackets("()((())){}({}[][])())"))
+print(check_brackets("()((()))([][])()"))
+print(check_brackets(")()((()))([][])()"))
 print(check_brackets(")))))((((("))
-print(check_brackets("()()10"))"""
+print(check_brackets("()()10"))
 print(check_brackets("(3)3"))
+print(check_brackets("(2025)2024"))
