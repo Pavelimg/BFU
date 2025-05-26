@@ -1,55 +1,30 @@
-def kmp_search(pattern, text):
-    """
-    Реализация алгоритма Кнута-Морриса-Пратта для поиска подстроки.
-    Возвращает список индексов начала вхождений pattern в text.
-    """
+def kmp(P, T):
+    # Вычисляем начальную позицию (количество символов) самого длинного суффикса, совпадающего с префиксом,
+    # и сохраняем их в список K. Первый элемент K установлен в -1, второй - в 0.
+    K = []  # K[t] хранит значение, на которое нужно сдвинуть шаблон P при несовпадении в позиции t
+    t = -1  # Длина K равна len(P) + 1, первый элемент равен -1 (соответствует пустому префиксу)
+    K.append(t)  # Добавляем первый элемент, сохраняем t = -1
+    for k in range(1, len(P) + 1):
+        # Обходим все элементы P, вычисляя соответствующие значения для каждого
+        while (t >= 0 and P[t] != P[
+            k - 1]):  # если t=-1, устанавливаем t=0; если t>=0 и суффикс не совпадает, пробуем более короткий суффикс
+            t = K[t]
+        t = t + 1  # Если совпадение найдено, увеличиваем позицию совпадения на 1
+        K.append(t)  # Записываем позицию совпадения для k
 
-    def compute_lps_array(pat):
-        """Вычисляет массив longest proper prefix which is also suffix"""
-        lps = [0] * len(pat)
-        length = 0  # длина предыдущего longest prefix suffix
-        i = 1
-
-        while i < len(pat):
-            if pat[i] == pat[length]:
-                length += 1
-                lps[i] = length
-                i += 1
-            else:
-                if length != 0:
-                    length = lps[length - 1]
-                else:
-                    lps[i] = 0
-                    i += 1
-        return lps
-
-    if not pattern:
-        return []
-
-    lps = compute_lps_array(pattern)
-    result = []
-    i = 0  # индекс для text
-    j = 0  # индекс для pattern
-
-    while i < len(text):
-        if pattern[j] == text[i]:
-            i += 1
-            j += 1
-
-            if j == len(pattern):
-                result.append(i - j)
-                j = lps[j - 1]
-        else:
-            if j != 0:
-                j = lps[j - 1]
-            else:
-                i += 1
-    return result
+    # Сопоставляем строку T с шаблоном P
+    m = 0  # Текущая позиция совпадения в P при сравнении с T
+    for i in range(0, len(T)):  # Последовательно обходим T
+        while (m >= 0 and P[m] != T[
+            i]):  # При несовпадении в позиции m сдвигаем P на K[m] позиций и перезапускаем сравнение
+            m = K[m]
+        m = m + 1  # Если позиция m совпадает, переходим к следующей позиции в P
+        if m == len(
+                P):  # Если достигнут конец P, найдено полное совпадение. Продолжаем сравнение со сдвигом P на K[m] позиций
+            print(i - m + 1, i)
+            m = K[m]
 
 
-# Пример использования
 if __name__ == "__main__":
-    text = "ABABDABACDABABCABAB"
-    pattern = "ABABCABAB"
-    matches = kmp_search(pattern, text)
-    print(f"Образец найден на позициях: {matches}")
+    kmp('abcbabca', 'abcbabcabcbabcbabcbabcabcbabcbabca')
+    kmp('abab', 'ababcabababc')

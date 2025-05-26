@@ -1,118 +1,257 @@
-import matplotlib.pyplot as plt  # Для построения графиков
-import pandas as pd  # Для работы с табличными данными
-import numpy as np  # Для числовых операций
-from scipy.interpolate import interp1d  # Для интерполяции
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
-plt.style.use('_mpl-gallery')  # Стиль графиков
+import numpy as np
+import pandas as pd
+ # Функция для линейной интерполяции
+def linear_interpolate(df):
+    """
+    Линейная интерполяция для заполнения пропущенных значений в DataFrame.
 
-# Загрузка данных из CSV файла (разделитель - точка с запятой)
-file_path = 'data2.csv'
-data = pd.read_csv(file_path, sep=";", header=None)  # Читаем без заголовков
+    Параметры:
+    df - DataFrame с колонками 'x' (независимая переменная) и 'y' (зависимая переменная)
 
-# Транспонируем данные - теперь строки = часы (0-23), столбцы = дни (1-31)
-data = data.T  # Преобразуем структуру данных
+    Возвращает:
+    DataFrame с заполненными пропусками в колонке 'y' с помощью линейной интерполяции
+    """
+    # Создаем копию DataFrame чтобы не изменять исходные данные
+    df = df.copy()
 
-# Настройки параметров
-hours = 24  # Количество часов в сутках (0-23)
-days = 31  # Количество дней в месяце (1-31)
+    # Удаляем строки с пропусками для определения известных точек
+    known_points = df.dropna()
 
-# Создаем пустую матрицу для температур (часы × дни)
-temperature_grid = np.empty((hours, days))  # Инициализация массива
-temperature_grid[:] = np.nan  # Заполняем значениями NaN (не числа)
+    # Если нет известных точек, возвращаем исходный DataFrame
+    if len(known_points) < 2:
+        raise ValueError("Для линейной интерполяции требуется минимум 2 известные точки")
 
-# Заполняем матрицу известными значениями из данных
-for hour in range(hours):  # Перебираем все часы
-    for day in range(days):  # Перебираем все дни
-        if day < len(data.columns):  # Проверяем, есть ли данные для этого дня
-            val = data.iloc[hour, day]  # Получаем значение температуры
-            if not pd.isna(val) and val != '':  # Если значение не пустое
-                try:
-                    temperature_grid[hour, day] = float(val)  # Записываем в матрицу
-                except:
-                    continue  # Пропускаем ошибки преобразования
+    # Сортируем точки по x для корректной интерполяции
+    known_points = known_points.sort_values('x')
+    x_known = known_points['x'].values
+    y_known = known_points['y'].values
 
+    # Функция для линейной интерполяции между двумя точками
+    def interpolate(x, x0, x1, y0, y1):
+        return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
 
-# Функция для интерполяции пропущенных значений
-def interpolate_missing(data):
-    linear_filled = np.copy(data)  # Копия для линейной интерполяции
-    quadratic_filled = np.copy(data)  # Копия для квадратичной интерполяции
+    # Применяем интерполяцию ко всем строкам
+    for i in range(len(df)):
+        if pd.isna(df.at[i, 'y']):
+            x = df.at[i, 'x']
 
-    for hour in range(hours):  # Для каждого часа
-        # Находим дни с известными значениями для этого часа
-        known_days = np.where(~np.isnan(data[hour]))[0]  # Индексы дней с данными
-        known_values = data[hour, known_days]  # Соответствующие температуры
+            # Находим ближайшие известные точки
+            if x <= x_known[0]:
+                # Экстраполяция слева - используем первые две точки
+                df.at[i, 'y'] = interpolate(x, x_known[0], x_known[1], y_known[0], y_known[1])
+            elif x >= x_known[-1]:
+                # Экстраполяция справа - используем последние две точки
+                df.at[i, 'y'] = interpolate(x, x_known[-2], x_known[-1], y_known[-2], y_known[-1])
+            else:
+                # Интерполяция - находим промежуток между известными точками
+                for j in range(len(x_known) - 1):
+                    if x_known[j] <= x <= x_known[j+1]:
+                        df.at[i, 'y'] = interpolate(x, x_known[j], x_known[j+1], y_known[j], y_known[j+1])
+                        break
 
-        if len(known_days) >= 2:  # Если есть хотя бы 2 точки
-            # Линейная интерполяция
-            f_linear = interp1d(known_days, known_values, kind='linear',
-                                bounds_error=False, fill_value=np.nan)  # Создаем функцию интерполяции
-            linear_filled[hour] = f_linear(np.arange(days))  # Применяем ко всем дням
+    return df
+ # Функция для квадратичной интерполяции
+def quadratic_interpolate(df):
 
-            if len(known_days) >= 3:  # Если есть хотя бы 3 точки
-                # Квадратичная интерполяция
-                coeffs = np.polyfit(known_days, known_values, 2)  # Находим коэффициенты параболы
-                quadratic_filled[hour] = np.polyval(coeffs, np.arange(days))  # Вычисляем значения
+    # Создаем копию DataFrame чтобы не изменять исходные данные
+    df = df.copy()
 
-    return linear_filled, quadratic_filled  # Возвращаем результаты
+    # Удаляем строки с пропусками для определения известных точек
+    known_points = df.dropna()
 
+    # Проверяем достаточное количество точек
+    if len(known_points) < 3:
+        raise ValueError("Для квадратичной интерполяции требуется минимум 3 известные точки")
 
-# Выполняем интерполяцию для всей сетки
-linear_grid, quadratic_grid = interpolate_missing(temperature_grid)
+    # Сортируем точки по x для корректной интерполяции
+    known_points = known_points.sort_values('x')
+    x_known = known_points['x'].values
+    y_known = known_points['y'].values
 
-# Подготовка данных для визуализации
-original_points = {'day': [], 'hour': [], 'temp': []}  # Исходные данные
-linear_points = {'day': [], 'hour': [], 'temp': []}  # Линейная интерполяция
-quadratic_points = {'day': [], 'hour': [], 'temp': []}  # Квадратичная интерполяция
+    # Функция для решения системы уравнений и нахождения коэффициентов параболы
+    def quadratic_coefficients(x0, x1, x2, y0, y1, y2):
+      # Создаем матрицу коэффициентов системы уравнений для квадратичной функции
+        A = np.array([
+            [x0**2, x0, 1],
+            [x1**2, x1, 1],
+            [x2**2, x2, 1]
+        ])
+        # Создаем вектор правых частей уравнений (значения y)
+        b = np.array([y0, y1, y2])
+    # Решаем систему линейных уравнений относительно a, b, c
+    # Возвращаем коэффициенты квадратичной функции y = a*x² + b*x + c
+        return np.linalg.solve(A, b)
 
-for hour in range(hours):  # Перебираем часы
-    for day in range(days):  # Перебираем дни
-        temp = temperature_grid[hour, day]  # Исходное значение
-        if not np.isnan(temp):  # Если значение есть
-            original_points['day'].append(day + 1)  # Сохраняем день (1-31)
-            original_points['hour'].append(hour)  # Сохраняем час (0-23)
-            original_points['temp'].append(temp)  # Сохраняем температуру
-        else:  # Если значение отсутствует
-            # Проверяем интерполированные значения
-            if not np.isnan(linear_grid[hour, day]):  # Если есть линейная интерполяция
-                linear_points['day'].append(day + 1)
-                linear_points['hour'].append(hour)
-                linear_points['temp'].append(linear_grid[hour, day])
+    # Применяем интерполяцию ко всем строкам
+    for i in range(len(df)):
+      # Проверяем, является ли текущее значение y пропущенным (NaN)
+        if pd.isna(df.at[i, 'y']):
+          # Получаем значение x для текущей строки
+            x = df.at[i, 'x']
 
-            if not np.isnan(quadratic_grid[hour, day]):  # Если есть квадратичная интерполяция
-                quadratic_points['day'].append(day + 1)
-                quadratic_points['hour'].append(hour)
-                quadratic_points['temp'].append(quadratic_grid[hour, day])
+            # Определяем какие точки использовать для интерполяции
+            if x <= x_known[0]:
+                # Экстраполяция слева - используем первые три точки
+                a, b, c = quadratic_coefficients(x_known[0], x_known[1], x_known[2],
+                                                y_known[0], y_known[1], y_known[2])
+            elif x >= x_known[-1]:
+                # Экстраполяция справа - используем последние три точки
+                a, b, c = quadratic_coefficients(x_known[-3], x_known[-2], x_known[-1],
+                                                y_known[-3], y_known[-2], y_known[-1])
+            else:
+                # Интерполяция - находим три ближайшие точки
+                for j in range(len(x_known) - 2):
+                    if x_known[j] <= x <= x_known[j+2]:
+                        a, b, c = quadratic_coefficients(x_known[j], x_known[j+1], x_known[j+2],
+                                                         y_known[j], y_known[j+1], y_known[j+2])
+                        break
 
-# Создаем 3D график
-fig = plt.figure(figsize=(16, 10))  # Размер графика
-ax = fig.add_subplot(111, projection='3d')  # 3D проекция
+            # Вычисляем значение y по квадратичной формуле
+            df.at[i, 'y'] = a * x**2 + b * x + c
 
-# Отображаем исходные данные (синие точки)
-ax.scatter(original_points['day'], original_points['hour'], original_points['temp'],
-           c='blue', label='Исходные данные', alpha=0.9, s=30)
+    return df
 
-# Отображаем линейную интерполяцию (зеленые точки)
-if linear_points['day']:  # Если есть что отображать
-    ax.scatter(linear_points['day'], linear_points['hour'], linear_points['temp'],
-               c='green', label='Линейная интерполяция', alpha=0.7, s=20)
+# Загрузка данных, изменяя пустышки на NaN и пропуская первую строку
+df = pd.read_excel('Точка росы.xlsx', skiprows=1, na_values=['', 'NA', 'N/A', 'null'])
+df = df.iloc[:, 1:]
 
-# Отображаем квадратичную интерполяцию (красные точки)
-if quadratic_points['day']:  # Если есть что отображать
-    ax.scatter(quadratic_points['day'], quadratic_points['hour'], quadratic_points['temp'],
-               c='red', label='Квадратичная интерполяция', alpha=0.7, s=20)
+# Создаем DataFrame
+df_optim = pd.DataFrame({
+    'x' : [i for i in range(1, 24 * 31 + 1)]
+})
 
-# Настройки внешнего вида графика
-ax.set_xlabel('День месяца', fontsize=12)  # Подпись оси X
-ax.set_ylabel('Час дня', fontsize=12)  # Подпись оси Y
-ax.set_zlabel('Температура (°C)', fontsize=12)  # Подпись оси Z
-ax.set_title('Температура по дням и часам с интерполяцией пропущенных значений', fontsize=14)
-ax.set_xlim(1, 31)  # Границы оси X (дни)
-ax.set_ylim(0, 23)  # Границы оси Y (часы)
-# Границы оси Z (температура) с небольшим запасом
-ax.set_zlim(np.nanmin(temperature_grid) - 2, np.nanmax(temperature_grid) + 2)
-ax.set_xticks(np.arange(1, 32, 2))  # Метки на оси X (каждый второй день)
-ax.set_yticks(np.arange(0, 24, 3))  # Метки на оси Y (каждые 3 часа)
-ax.legend(fontsize=10)  # Легенда графика
+# Помещаем столбец из данных excel в один столбец перебирая строки слева на право
+df_optim['y'] = pd.DataFrame(df.values.ravel())
 
-plt.tight_layout()  # Оптимизация расположения элементов
-plt.show()  # Показать график
+# Применяем интерполяции
+df_linear = linear_interpolate(df_optim)
+df_quadratic = quadratic_interpolate(df_optim)
+
+# Создаем фигуру
+plt.figure(figsize=(100, 16))
+
+# Точки (красные кружки)
+plt.plot(
+    df_linear['x'],
+    df_linear['y'],
+    marker='o',
+    linestyle='',
+    markerfacecolor='red',
+    markersize=6,
+)
+
+# Линейная интерполяция (оранжевая линия)
+plt.plot(
+    df_linear['x'],
+    df_linear['y'],
+    color='orange',
+    linewidth=2,
+    label='Линейная интерполяция'
+)
+
+# Настройки графика
+plt.xlabel('x', fontsize=12)
+plt.ylabel('y', fontsize=12)
+plt.title('Линейная интерполяция. МЛСП Д_6 Точка росы.   Март 2009', fontsize=14)
+plt.xlim(left = 0, right = 744)
+plt.legend()
+plt.grid()
+plt.show()
+
+# Создаем фигуру
+plt.figure(figsize=(100, 16))
+
+# Точки (синие кружки)
+plt.plot(
+    df_quadratic['x'],
+    df_quadratic['y'],
+    marker='o',
+    linestyle='',
+    markerfacecolor='blue',
+    markersize=6,
+)
+
+# Квадратичная интерполяция (зеленая линия)
+plt.plot(
+    df_quadratic['x'],
+    df_quadratic['y'],
+    color='green',
+    linewidth=2,
+    label='Квадратичная интерполяция'
+)
+
+# Настройки графика
+plt.xlabel('x', fontsize=12)
+plt.ylabel('y', fontsize=12)
+plt.title('Квадратичная интерполяция. МЛСП Д_6 Точка росы.   Март 2009', fontsize=14)
+plt.xlim(left = 0, right = 744)
+plt.legend()
+plt.grid()
+plt.show()
+
+# Создаем фигуру
+plt.figure(figsize=(100, 16))
+
+# Точки (красные кружки)
+plt.plot(
+    df_linear['x'],
+    df_linear['y'],
+    marker='o',
+    linestyle='',
+    markerfacecolor='red',
+    markersize=6,
+)
+
+# Точки (синие кружки)
+plt.plot(
+    df_quadratic['x'],
+    df_quadratic['y'],
+    marker='o',
+    linestyle='',
+    markerfacecolor='blue',
+    markersize=6,
+)
+
+# Линейная интерполяция (оранжевая линия)
+plt.plot(
+    df_linear['x'],
+    df_linear['y'],
+    color='orange',
+    linewidth=2,
+    label='Линейная интерполяция'
+)
+
+# Квадратичная интерполяция (зеленая линия)
+plt.plot(
+    df_quadratic['x'],
+    df_quadratic['y'],
+    color='green',
+    linewidth=2,
+    label='Квадратичная интерполяция'
+)
+
+# Настройки графика
+plt.xlabel('x', fontsize=12)
+plt.ylabel('y', fontsize=12)
+plt.title('Сравнение методов интерполяции. МЛСП Д_6 Точка росы.   Март 2009', fontsize=14)
+plt.xlim(left = 0, right = 744)
+plt.legend()
+plt.grid()
+plt.show()
+
+df_result_lin = np.array([f"{df_linear['x'][i]} : {df_linear['y'][i]}" for i in range(len(df_linear['x']))])
+df_result_quad = np.array([f"{df_linear['x'][i]} : {df_linear['y'][i]}" for i in range(len(df_quadratic['x']))])
+
+# Записываем результаты
+with open('result.txt', 'w') as file:
+    file.write("Линейная интерполяция:\n")
+    file.write(f"(x час : y °С) : {', '.join(df_result_lin)}\n")
+
+with open('result.txt', 'a') as file:
+    file.write("Квадратичная интерполяция:\n")
+    file.write(f"(x час : y °С) : {', '.join(df_result_quad)}\n")

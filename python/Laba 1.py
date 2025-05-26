@@ -1,54 +1,109 @@
-import pandas
-import gsw
-
+import numpy as np
 import matplotlib.pyplot as plt
+import gsw
+import pandas as pd
 
+def clear_file(file_path):
+    with open(file_path, 'w') as file:
+        file.write('')
+    return file_path
 
-# forward
-def vertical_salinity_gradient(salinity, depth):
-    dz = depth[1] - depth[0]
-    gradient = []
+def calculate_gradient(z, S, method="left"):
+    """Вычисляет вертикальный градиент солености методом левого разностного приближения."""
+    gradient = np.zeros_like(S, dtype=float)  # Создаем массив для градиентов
 
-    # Центральная разность для внутренних точек
-    for i in range(1, len(depth) - 1):
-        grad = (salinity[i + 1] - salinity[i - 1]) / (2 * dz)
-        gradient.append(grad)
+    # Обратное (левое) разностное приближение
+    for i in range(1, len(S)):
+        gradient[i] = (S[i] - S[i-1]) / (z[i] - z[i-1])  # Расчет градиента как разность текущего и предыдущего значений
 
-    front_diff = (salinity[1] - salinity[0]) / dz
-    back_diff = (salinity[-1] - salinity[-2]) / dz
-
-    gradient.insert(0, front_diff)
-    gradient.append(back_diff)
+    # Первому элементу присваиваем значение второго, так как для первого элемента нет предыдущего
+    gradient[0] = gradient[1] if len(S) > 1 else 0
 
     return gradient
 
+def halocline(depth, salinity_gradient):
+    """Находит галоклин и выводит на какой глубине"""
+    max_gradient_index = np.argmax(np.abs(salinity_gradient)) #индекс максимального градиента
+    halocline_depth = depth[max_gradient_index]  # Используем max_gradient_index
+    return f"Галоклин находится на глубине {halocline_depth:.2f} м с градиентом {salinity_gradient[max_gradient_index]} PSU/м."
 
-file_path = 'data1.csv'
-input_data = pandas.read_csv(file_path)
+file_path = '/Фрагмент массива данных CTD-зондирования.xlsx'
+df = pd.read_excel(file_path)
+Station, Latitude, Longitude, Date, Pressure, Depth, Temperature, Conductivity = df.iloc[:, 1], df.iloc[:, 2], df.iloc[:, 3], df.iloc[:, 4], df.iloc[:, 5], df.iloc[:, 6], df.iloc[:, 8], df.iloc[:, 9]
+check, n, m = Date[1], 0, 1
 
-filter_data = input_data[input_data['Depth [m]'] >= 15]  # Фильтруем значение с глубины менее 15 метров
+# Открываем файл для записи результатов
+with open('/result.txt', 'a') as file:
+    for i in range(1, len(Date)):
+        if check != Date[i]:
+            check = Date[i]
+            n = i
+            z = np.array([float(Depth[j]) for j in range(m, n) if float(Depth[j]) >= 15])
+            C = np.array([float(Conductivity[j]) for j in range(m, n) if float(Depth[j]) >= 15])
+            T = np.array([float(Temperature[j]) for j in range(m, n) if float(Depth[j]) >= 15])
+            P = np.array([float(Pressure[j]) for j in range(m, n) if float(Depth[j]) >= 15])
+            m = n
+            sort_idx = np.argsort(z)
+            z_s = z[sort_idx]
+            T_s  = T[sort_idx]
+            P_s  = P[sort_idx]
+            C_s  = C[sort_idx]
+            k = len(C)
 
-# получаем Солёность (aka Sal) из проводимости, температуры, давления
-filter_data["SP"] = gsw.SP_from_C(filter_data["Conductivity [mS/cm]"], filter_data["Temperature [degrees_C]"],
-                                  filter_data["Pressure"])
+            # Пример данных: глубина [м] и соленость [PSU]
+            S = np.array([gsw.SP_from_C(C_s[j], T_s[j], P_s[j]) for j in range(k)])
+            SA = np.array([gsw.SA_from_SP(S[j], P_s[j], Longitude[i - 1], Latitude[i - 1]) for j in range(k)])
 
-# Получаем Абсолютную солёность (aka SA) из обычной солёности и широты с долготой
-filter_data["SA"] = gsw.SA_from_SP_Baltic(filter_data["SP"], filter_data["Longitude [degrees_east]"],
-                                          filter_data["Latitude [degrees_north]"])
+            # Расчет градиента
+            gradient = calculate_gradient(z_s, S, method='left')
+            gradient1 = calculate_gradient(z_s, SA, method='left')  # Используем z_s для SA
 
-# Считаем градиент абсолютной солёности (aka dSA)
-filter_data["dSA"] = vertical_salinity_gradient(filter_data["SA"].tolist(), filter_data["Depth [m]"].tolist())
+            # Профиль солености
+            plt.figure(figsize=(20, 16))
+            plt.plot(S, z_s, 'o-')
+            plt.ylim(bottom=14.9)
+            plt.gca().invert_yaxis()
+            plt.title(f"Соленость, Дата: {Date[i - 1]}, Станиция: {Station[i - 1]}")
+            plt.xlabel('Соленость (PSU)')
+            plt.ylabel('Глубина (м)')
+            plt.grid()
+            plt.show()
 
-filter_data.to_csv("res.csv")
+            # График градиента
+            plt.figure(figsize=(20, 16))
+            plt.plot(gradient, z_s, 's--')
+            plt.ylim(bottom=14.9)
+            plt.gca().invert_yaxis()
+            plt.title(f"Вертикальный градиент солености, Дата: {Date[i - 1]}, Станиция: {Station[i - 1]}")
+            plt.xlabel('Градиент (PSU/м)')
+            plt.grid()
+            plt.show()
 
+            # Профиль абсолютной солености
+            plt.figure(figsize=(20, 16))
+            plt.plot(SA, z_s, 'o-')
+            plt.ylim(bottom=14.9)
+            plt.gca().invert_yaxis()
+            plt.title(f"Абсолютная соленость, Дата: {Date[i - 1]}, Станиция: {Station[i - 1]}")
+            plt.xlabel('Соленость (PSU)')
+            plt.ylabel('Глубина (м)')
+            plt.grid()
+            plt.show()
 
-x = filter_data["Depth [m]"]
-a = filter_data["SA"]
-b = filter_data["SP"]
-c = filter_data["dSA"]
+            # График градиента
+            plt.figure(figsize=(20, 16))
+            plt.plot(gradient1, z_s, 's--')
+            plt.ylim(bottom=14.9)
+            plt.gca().invert_yaxis()
+            plt.title(f"Вертикальный градиент абсолютной солености, Дата: {Date[i - 1]}, Станиция: {Station[i - 1]}")
+            plt.xlabel('Градиент (PSU/м)')
+            plt.grid()
+            plt.show()
 
-fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1)
-scatter1 = ax1.scatter(list(x) * 2, list(a) + list(b), c=[1 for _ in range(len(a))] + [2 for _ in range(len(a))])
-scatter2 = ax2.bar(x, c, color=['green' if y > 0 else 'red' for y in list(c)])
-
-plt.show()
+            # Запись результатов в файл
+            file.write(f'Дата: {Date[i - 1]}, Станиция: {Station[i - 1]}\n')
+            file.write(halocline(z_s, gradient) + '\n')
+            file.write(f"Соленость: {' '.join(str(x) for x in S)}\n")
+            file.write(f"Вертикальный градиент солености: {' '.join(str(x) for x in gradient)}\n")
+            file.write(f"Абсолютная соленость: {' '.join(str(x) for x in SA)}.\n")
+            file.write(f"Вертикальный градиент абсолютной солености: {' '.join(str(x) for x in gradient1)}\n\n")

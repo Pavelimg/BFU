@@ -1,21 +1,27 @@
-def run_context_free(n, string="S"):
+def homski(n, string="S"):
     string = string.replace("S", "AB")  # S → AB
-    for _ in range(n - 1):  # A → 0A1
-        string = string.replace("A", "0A1")
-    string = string.replace("A", "0.1")  # A → 0.1
-    string = string.replace("B", "001")  # B → 001
+    for _ in range(n):  # A → CE
+        string = string.replace("A", "CE")  # A → CE
+        string = string.replace("E", "AD")  # E → AD
+    string = string.replace("A", ".")  # A → .
+    string = string.replace("B", "GD")  # B → 001
+    string = string.replace("G", "CC")  # G → CC
+    string = string.replace("C", "0")  # C → 0
+    string = string.replace("D", "1")  # D → 1
     return string
 
 
-def run_normal_homski(n, string="S"):
-    string = string.replace("S", "AB")  # S → AB
-    for _ in range(n - 1):  # A → CA
-        string = string.replace("A", "CA")
-    string = string.replace("A", "CF")  # A → CF
-    string = string.replace("F", "ED")  # F → ED
-
-    string = string.replace("B", "CG")  # B → 001
+def greybax(n, string="S"):
+    string = string.replace("S", "0ACB")  # S → AB
+    for _ in range(n - 1):  # A → 0AC
+        string = string.replace("A", "0AC")
+    string = string.replace("A", ".")  # B → 0DC
+    string = string.replace("B", "0DC")  # B → 0DC
+    string = string.replace("C", "1")  # C → 1
+    string = string.replace("D", "0")  # D → 0
     return string
 
 
-print(run_context_free(1))
+for i in range(1, 20, 3):
+    print(f"n = {i} | Хомский = {homski(i)}| Грейбах = {greybax(i)}")
+

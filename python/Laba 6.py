@@ -1,136 +1,109 @@
-﻿# Импорт необходимых модулей
-import datetime  # Для работы с датой и временем
-import time  # Для измерения времени выполнения и задержек
-from functools import wraps  # Декоратор wraps для сохранения метаданных функций
+import pandas as pd
+import matplotlib.pyplot as plt
 
+# Чтение данных из CSV файла
+df = pd.read_csv('Laba 5.csv')
 
-# 1. Декоратор для логирования вызовов функций в файл
-def log_decorator(func):
-    @wraps(func)  # Сохраняет оригинальные атрибуты функции
-    def wrapper(*args, **kwargs):
-        # Фиксируем время начала выполнения функции
-        start_time = datetime.datetime.now()
-        # Форматируем время начала в строку заданного формата
-        start_time_str = start_time.strftime("[%Y-%m-%d %H:%M:%S]")
+# 1) Линейный график общей прибыли за все месяцы (синий, не пунктирный)
+plt.figure(figsize=(8, 5))
+plt.plot(df['month_number'], df['total_profit'],
+         linestyle='-', color='blue',
+         label='Общая прибыль')
+plt.xlabel('Номер месяца')
+plt.ylabel('Общая прибыль')
+plt.title('Общая прибыль по месяцам')
+plt.legend(loc='lower right')
+plt.show()
 
-        # Замеряем время выполнения с помощью time.time()
-        start = time.time()
-        # Вызываем оригинальную функцию с переданными аргументами
-        result = func(*args, **kwargs)
-        end = time.time()
-        # Вычисляем время выполнения (разница между end и start)
-        execution_time = end - start
+# 2) Линейный график количества проданных единиц (пунктирный с чёрными точками)
+plt.figure(figsize=(8, 5))
+plt.plot(df['month_number'], df['total_units'],
+         linestyle='--', linewidth=2, marker='o',
+         markerfacecolor='black', color='red',
+         markersize=6, label='Продажи (ед.)')
+plt.xlabel('Номер месяца')
+plt.ylabel('Количество проданных единиц')
+plt.title('Продажи по месяцам')
+plt.legend()
+plt.show()
 
-        # Фиксируем время завершения функции
-        end_time = datetime.datetime.now()
-        # Форматируем время завершения
-        end_time_str = end_time.strftime("[%Y-%m-%d %H:%M:%S]")
+# 3) Графики продаж каждого продукта на одном графике (толстые линии с точками)
+plt.figure(figsize=(10, 6))
+products = ['facecream', 'facewash', 'toothpaste', 'bathingsoap', 'shampoo', 'moisturizer']
+markers = ['o', 's', '^', 'D', 'p', '*']  # разные маркеры для каждого продукта
 
-        # Формируем запись для лог-файла:
-        # 1. Время вызова и имя функции с аргументами
-        # 2. Время завершения, время выполнения и результат
-        log_entry = (
-            f"{start_time_str} Функция '{func.__name__}' вызвана с аргументами: {args}, {kwargs}\n"
-            f"{end_time_str} Функция '{func.__name__}' завершена. "
-            f"Время выполнения: {execution_time:.2f} сек. Результат: {result!r}.\n\n"
-        )
+for product, marker in zip(products, markers):
+    plt.plot(df['month_number'], df[product],
+             linewidth=2, marker=marker,
+             markersize=6, label=product)
 
-        # Открываем файл для добавления записей (режим 'a')
-        # Используем encoding='utf-8' для корректной работы с русским языком
-        with open("log.txt", "a", encoding="utf-8") as f:
-            f.write(log_entry)  # Записываем сформированную строку в файл
+plt.xlabel('Номер месяца')
+plt.ylabel('Продажи (ед.)')
+plt.title('Продажи продуктов по месяцам')
+plt.legend()
+plt.show()
 
-        return result  # Возвращаем результат оригинальной функции
+# 4) Отдельные графики для каждого продукта (точки и толстые линии)
+fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+fig.suptitle('Продажи продуктов по месяцам')
 
-    return wrapper  # Возвращаем функцию-обертку
+for i, product in enumerate(products):
+    row = i // 3
+    col = i % 3
+    axes[row, col].plot(df['month_number'], df[product],
+                        linewidth=3, marker='o',
+                        markersize=6)
+    axes[row, col].set_title(product)
+    axes[row, col].set_xlabel('Номер месяца')
+    axes[row, col].set_ylabel('Продажи (ед.)')
 
+plt.tight_layout()
+plt.show()
 
-# 2. Декоратор для ограничения количества вызовов функции
-def rate_limit(max_calls, period):
-    # Внешняя функция-фабрика декоратора
-    def decorator(func):
-        calls = []  # Список для хранения временных меток вызовов
+# 5) Точечный график продаж зубной пасты (оставляем без изменений)
+plt.figure(figsize=(8, 5))
+plt.scatter(df['month_number'], df['toothpaste'], label='Зубная паста')
+plt.xlabel('Номер месяца')
+plt.ylabel('Количество проданных единиц')
+plt.title('Продажи зубной пасты')
+plt.grid(linestyle='--')
+plt.legend()
+plt.show()
 
-        @wraps(func)  # Сохраняем метаданные оригинальной функции
-        def wrapper(*args, **kwargs):
-            # Получаем текущее время
-            current_time = time.time()
-            # Фильтруем список вызовов, оставляя только те,
-            # которые были в течение последних 'period' секунд
-            calls[:] = [call for call in calls if call > current_time - period]
+# 6) Столбчатая диаграмма для facecream и facewash (оставляем без изменений)
+plt.figure(figsize=(10, 6))
+width = 0.4
+plt.bar(df['month_number'] - width / 2, df['facecream'], width=width, label='Face Cream')
+plt.bar(df['month_number'] + width / 2, df['facewash'], width=width, label='Face Wash')
+plt.xlabel('Номер месяца')
+plt.ylabel('Продажи (ед.)')
+plt.title('Продажи Face Cream и Face Wash')
+plt.legend()
+plt.show()
 
-            # Если количество вызовов превысило лимит
-            if len(calls) >= max_calls:
-                print("Превышен лимит вызовов. Попробуйте позже.")
-                return None  # Возвращаем None вместо вызова функции
+# 7) Круговая диаграмма общих продаж по продуктам (добавляем легенду)
+total_sales = df[products].sum()
+plt.figure(figsize=(8, 8))
+patches, texts, autotexts = plt.pie(total_sales,
+                                    labels=products,
+                                    autopct='%1.1f%%',
+                                    startangle=90)
+plt.legend(patches, products,
+           loc="center left",
+           bbox_to_anchor=(1, 0, 0.5, 1))
+plt.title('Доля продаж продуктов за год')
+plt.tight_layout()
+plt.show()
 
-            # Добавляем текущее время в список вызовов
-            calls.append(current_time)
-            # Вызываем оригинальную функцию
-            return func(*args, **kwargs)
-
-        return wrapper  # Возвращаем функцию-обертку
-
-    return decorator  # Возвращаем декоратор
-
-
-# 3. Декоратор для кэширования результатов функции
-def cache_decorator(func):
-    cache = {}  # Словарь для хранения кэшированных результатов
-
-    @wraps(func)  # Сохраняем метаданные оригинальной функции
-    def wrapper(*args, **kwargs):
-        # Создаем ключ на основе позиционных и именованных аргументов
-        # frozenset используется для именованных аргументов, так как он хешируемый
-        key = (args, frozenset(kwargs.items()))
-
-        # Если результат для данного ключа еще не в кэше
-        if key not in cache:
-            # Вычисляем и сохраняем результат
-            cache[key] = func(*args, **kwargs)
-
-        # Возвращаем результат из кэша
-        return cache[key]
-
-    return wrapper  # Возвращаем функцию-обертку
-
-
-# Пример функции с декоратором логирования
-@log_decorator
-def calculate_power(base, exponent):
-    """Возводит число в степень"""
-    time.sleep(1)  # Искусственная задержка для демонстрации
-    return base ** exponent  # Возвращаем результат возведения в степень
-
-
-# Пример функции с декоратором ограничения вызовов
-@rate_limit(max_calls=3, period=10)
-def send_notification(message):
-    """Отправляет уведомление"""
-    print(f"Отправлено уведомление: {message}")
-
-
-# Пример функции с декоратором кэширования
-@cache_decorator
-def fibonacci(n):
-    """Вычисляет число Фибоначчи"""
-    if n <= 1:  # Базовый случай рекурсии
-        return n
-    # Рекурсивный вызов с сохранением промежуточных результатов в кэше
-    return fibonacci(n - 1) + fibonacci(n - 2)
-
-
-# Демонстрация работы всех декораторов
-if __name__ == "__main__":
-    print("=== Демонстрация декоратора логирования ===")
-    print(calculate_power(2, 10))  # Результат запишется в log.txt
-
-    print("\n=== Демонстрация декоратора ограничения вызовов ===")
-    for i in range(5):  # Пытаемся вызвать функцию 5 раз
-        send_notification(f"Тест {i + 1}")  # Но сработает только 3 раза за 10 секунд
-        time.sleep(1)  # Пауза между вызовами
-
-    print("\n=== Демонстрация декоратора кэширования ===")
-    print("fibonacci(10):", fibonacci(10))  # Будет вычислено
-    print("fibonacci(10):", fibonacci(10))  # Возьмется из кэша
-    print("fibonacci(15):", fibonacci(15))  # Частично использует кэш
+# 8) Слоеная диаграмма продаж всех продуктов (оставляем без изменений)
+plt.figure(figsize=(10, 6))
+plt.stackplot(df['month_number'],
+              df['facecream'], df['facewash'],
+              df['toothpaste'], df['bathingsoap'],
+              df['shampoo'], df['moisturizer'],
+              labels=products)
+plt.xlabel('Номер месяца')
+plt.ylabel('Продажи (ед.)')
+plt.title('Продажи всех продуктов по месяцам')
+plt.legend(loc='upper left')
+plt.show()
